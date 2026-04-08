@@ -2,9 +2,9 @@ use std::io::{Write, Error};
 use once_cell::sync::Lazy;
 use termion::{cursor, style, color};
 
-use catan::state::{State, PlayerId, PlayerHand};
-use catan::utils::{Resource, Hex, DevelopmentCard};
-use catan::board::Coord;
+use crate::state::{State, PlayerId, PlayerHand};
+use crate::utils::{Resource, Hex, DevelopmentCard};
+use crate::board::Coord;
 
 use super::drawtype::{ToDrawType, DrawType, player_color, player_letter};
 use super::utils::{GridDisplayable, Pattern};
@@ -50,7 +50,7 @@ static ROAD_Z_PATTERN: Lazy<Pattern> = Lazy::new(|| Pattern::new(vec![
     " %%"
 ]));
 
-pub(crate) struct PrettyGridDisplay;
+pub struct PrettyGridDisplay;
 impl PrettyGridDisplay {
     pub const INSTANCE: PrettyGridDisplay = PrettyGridDisplay;
 }

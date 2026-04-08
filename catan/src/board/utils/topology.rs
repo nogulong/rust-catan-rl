@@ -92,3 +92,128 @@ impl<T : RawTopology> Topology for T {
         self.neighbours(coord, CoordType::Intersection, CoordType::Intersection)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_hex_hex_neighbours() {
+        let hex = Coord::new(0, 0);
+        let topology = CoordTopology;
+        let neighbours = topology.hex_hex_neighbours(hex).unwrap();
+
+        assert_eq!(neighbours.len(), 6);
+        assert!(neighbours.contains(&Coord::new(4, 0)));
+        assert!(neighbours.contains(&Coord::new(2, 2)));
+        assert!(neighbours.contains(&Coord::new(-2, 2)));
+        assert!(neighbours.contains(&Coord::new(-4, 0)));
+        assert!(neighbours.contains(&Coord::new(-2, -2)));
+        assert!(neighbours.contains(&Coord::new(2, -2)));
+    }
+
+    #[test]
+    fn test_hex_path_neighbours() {
+        let hex = Coord::new(0, 0);
+        let topology = CoordTopology;
+        let neighbours = topology.hex_path_neighbours(hex).unwrap();
+
+        assert_eq!(neighbours.len(), 6);
+        assert!(neighbours.contains(&Coord::new(2, 0)));
+        assert!(neighbours.contains(&Coord::new(1, 1)));
+        assert!(neighbours.contains(&Coord::new(-1, 1)));
+        assert!(neighbours.contains(&Coord::new(-2, 0)));
+        assert!(neighbours.contains(&Coord::new(-1, -1)));
+        assert!(neighbours.contains(&Coord::new(1, -1)));
+    }
+
+    #[test]
+    fn test_hex_intersection_neighbours() {
+        let hex = Coord::new(0, 0);
+        let topology = CoordTopology;
+        let neighbours = topology.hex_intersection_neighbours(hex).unwrap();
+
+        assert_eq!(neighbours.len(), 6);
+        assert!(neighbours.contains(&Coord::new(2, 1)));
+        assert!(neighbours.contains(&Coord::new(0, 1)));
+        assert!(neighbours.contains(&Coord::new(-2, 1)));
+        assert!(neighbours.contains(&Coord::new(-2, -1)));
+        assert!(neighbours.contains(&Coord::new(0, -1)));
+        assert!(neighbours.contains(&Coord::new(2, -1)));
+    }
+
+    #[test]
+    fn test_path_hex_neighbours() {
+        let path = Coord::new(2, 0);  // IPath
+        let topology = CoordTopology;
+        let neighbours = topology.path_hex_neighbours(path).unwrap();
+
+        assert_eq!(neighbours.len(), 2);
+        assert!(neighbours.contains(&Coord::new(4, 0)));
+        assert!(neighbours.contains(&Coord::new(0, 0)));
+    }
+
+    #[test]
+    fn test_path_intersection_neighbours() {
+        let path = Coord::new(2, 0);  // IPath
+        let topology = CoordTopology;
+        let neighbours = topology.path_intersection_neighbours(path).unwrap();
+
+        assert_eq!(neighbours.len(), 2);
+        assert!(neighbours.contains(&Coord::new(2, 1)));
+        assert!(neighbours.contains(&Coord::new(2, -1)));
+    }
+
+    #[test]
+    fn test_intersection_hex_neighbours() {
+        let intersection = Coord::new(0, 1);  // AIntersection
+        let topology = CoordTopology;
+        let neighbours = topology.intersection_hex_neighbours(intersection).unwrap();
+
+        assert_eq!(neighbours.len(), 3);
+        assert!(neighbours.contains(&Coord::new(2, 2)));
+        assert!(neighbours.contains(&Coord::new(-2, 2)));
+        assert!(neighbours.contains(&Coord::new(0, 0)));
+    }
+
+    #[test]
+    fn test_intersection_path_neighbours() {
+        let intersection = Coord::new(0, 1);  // AIntersection
+        let topology = CoordTopology;
+        let neighbours = topology.intersection_path_neighbours(intersection).unwrap();
+
+        assert_eq!(neighbours.len(), 3);
+        assert!(neighbours.contains(&Coord::new(1, 1)));
+        assert!(neighbours.contains(&Coord::new(0, 2)));
+        assert!(neighbours.contains(&Coord::new(-1, 1)));
+    }
+
+    #[test]
+    fn test_intersection_intersection_neighbours() {
+        let intersection = Coord::new(0, 1);  // AIntersection
+        let topology = CoordTopology;
+        let neighbours = topology.intersection_intersection_neighbours(intersection).unwrap();
+
+        assert_eq!(neighbours.len(), 3);
+        assert!(neighbours.contains(&Coord::new(2, 1)));
+        assert!(neighbours.contains(&Coord::new(0, 3)));
+        assert!(neighbours.contains(&Coord::new(-2, 1)));
+    }
+
+    #[test]
+    fn test_wrong_coord_type_error() {
+        let path = Coord::new(2, 0);  // This is a Path
+        let topology = CoordTopology;
+
+        // Try to get hex_hex_neighbours on a path - should fail
+        let result = topology.hex_hex_neighbours(path);
+        assert!(result.is_err());
+
+        if let Err(Error::WrongCoordType { expected, received }) = result {
+            assert_eq!(expected, CoordType::Hex);
+            assert_eq!(received, CoordType::Path);
+        } else {
+            panic!("Expected WrongCoordType error");
+        }
+    }
+}

@@ -3,24 +3,30 @@ name = "pycatan"
 version = "0.1.2"
 authors = ["Quentin Gendre <swynfel@gmail.com>"]
 edition = "2018"
+build = "build.rs"
 
 [lib]
-name = "pycatan"
+name = "_pycatan"
 crate-type = ["cdylib"]
+
+[dependencies]
+ndarray= { version = "0.16", features = ["serde", "rayon"] }
+rayon = "1.11.0"
+rmp-serde = "1.3.0"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
+typetag = "0.2.21"
 
 [dependencies.catan]
 path = "../catan"
 
 [dependencies.pyo3]
-version = "0.8"
+version = "0.25"
 features = ["extension-module"]
 
 [dependencies.numpy]
-version = "0.7"
-
-[dependencies.ndarray]
-version = "0.13"
+version = "0.25"
 
 [dependencies.rand]
-version = "0.7"
+version = "0.9"
 features = ["small_rng"]

@@ -19,14 +19,17 @@ impl PyObservationFormat {
         (x,y)
     }
 }
-
 #[pymethods]
 impl PyObservationFormat {
 
     #[new]
-    #[staticmethod]
-    #[args(half_width = 10, half_height = 5, use_python_state = false, include_hidden = false)]
-    pub fn new(half_width: usize, half_height: usize, use_python_state: bool, include_hidden: bool) -> Self {
+    #[pyo3(signature = (half_width=10, half_height=5, use_python_state=false, include_hidden=false))]
+    pub fn new(
+        half_width: usize,
+        half_height: usize,
+        use_python_state: bool,
+        include_hidden: bool
+    ) -> Self {
         PyObservationFormat {
             half_width,
             half_height,
@@ -34,6 +37,20 @@ impl PyObservationFormat {
             height: 2*half_height+1,
             use_python_state,
             include_hidden,
+        }
+    }
+}
+
+impl Default for PyObservationFormat {
+    fn default() -> Self {
+        // new と同じデフォルト値
+        PyObservationFormat {
+            half_width: 10,
+            half_height: 5,
+            width: 2 * 10 + 1,
+            height: 2 * 5 + 1,
+            use_python_state: false,
+            include_hidden: false,
         }
     }
 }

@@ -1,4 +1,4 @@
-use crate::utils::{Coord, CoordType, Resources, DevelopmentCard};
+use crate::utils::{Coord, CoordType, DevelopmentCard, Resource, Resources};
 use crate::state::{State, PlayerId};
 use crate::game::{Phase, TurnPhase, DevelopmentPhase, Action, Error};
 use crate::board::utils::topology::Topology;
@@ -39,28 +39,32 @@ pub fn allowed_initial_road_placement(coord: Coord, player: PlayerId, state: &St
     }
 }
 
-/// Does this victim have a settlement or city aroung the hex
+/// Does this victim have a settlement or city around the hex
 ///
-/// Usefull to check if the player can steal from the victim
+/// Useful to check if the player can steal from the victim
 pub fn can_steal_victim(player: PlayerId, target_hex: Coord, victim: PlayerId, state: &State) -> Result<(), Error> {
     let mut potential_victims = vec![false; state.player_count() as usize];
+    let mut no_victim_available = true;
     for intersection in state.hex_intersection_neighbours(target_hex)?.iter() {
         if let Some((p, _)) = state.get_dynamic_intersection(*intersection)? {
             if p != player {
                 potential_victims[p.to_usize()] = true;
+                no_victim_available = false;
             }
         }
     }
-    if potential_victims[victim.to_usize()] {
-        Ok(())
-    } else if victim != player && victim != PlayerId::NONE {
-        Err(Error::WrongVictim { victim })
-    } else {
-        if potential_victims.into_iter().any(|x| x) {
-            Err(Error::MustPickVictim)
+    if victim == PlayerId::NONE || victim == player {// Steal from no one
+        if no_victim_available {
+            return Ok(());
         } else {
-            Ok(())
+            return Err(Error::MustPickVictim);
         }
+    } else if victim.to_u8() >= state.player_count() { // index out of range
+        return Err(Error::WrongVictim { victim });
+    } else if potential_victims[victim.to_usize()] { // The victim has a settlement or city around the hex
+        return Ok(());
+    } else { // The victim has no settlement or city around the hex
+        return Err(Error::WrongVictim { victim });
     }
 }
 
@@ -69,12 +73,16 @@ pub fn can_steal_victim(player: PlayerId, target_hex: Coord, victim: PlayerId, s
 /// Can the player put a road at the given path
 /// Checks number of road pieces left, if the position is connected and if the position is empty
 /// But NOT the player's resources
+///  + should check if the mid intersection is not occupied by another player's settlement/city
 pub fn can_put_road(player: PlayerId, path: Coord, state: &State) -> Result<(), Error> {
     // Does the player have a road piece left?
     if state.get_player_hand(player).road_pieces == 0 {
         Err(Error::NoMorePiece { piece: 0 })
     // Is the path are next to a road owned by the player?
     } else if !connected_position(path, player, state)? {
+        Err(Error::NotConnected { coord: path })
+    // Is the path blocked by another player's settlement/city at the mid intersection?
+    } else if is_blocked_path(path, player, state) {
         Err(Error::NotConnected { coord: path })
     // Is the position empty?
     } else if state.get_dynamic_path(path)?.is_some() {
@@ -103,11 +111,41 @@ pub fn connected_position(coord: Coord, player: PlayerId, state: &State) -> Resu
     Ok(false)
 }
 
+/// Is the path blocked by another player's settlement/city at the mid intersection
+pub fn is_blocked_path(path: Coord, player: PlayerId, state: &State) -> bool {
+    let neighbour_intersections = match state.path_intersection_neighbours(path) {
+        Ok(neighbours) => neighbours,
+        Err(_) => return false,
+    };
+    // 接続元の交差点があるかチェック
+    for intersection in neighbour_intersections {
+        // 誰の頂点でもない -> その頂点に接続する道があればいい
+        // 他のプレイヤーの頂点 -> ブロックされている
+        if let Some((p, _)) = state.get_dynamic_intersection(intersection).expect("Getting intersection failed") {
+            if p != player {
+                continue; // 他のプレイヤーの頂点ならブロックされている
+            } else {
+                return false; // 自分の頂点ならブロックされていない
+            }
+        } else { // 誰の頂点でもない
+            let neighbour_paths = state.intersection_path_neighbours(intersection).expect("Getting intersection neighbours failed");
+            for neighbour_path in neighbour_paths {
+                if let Some(p) = state.get_dynamic_path(neighbour_path).expect("Getting path failed") {
+                    if p == player {
+                        return false; // 自分の道に接続しているならブロックされていない
+                    }
+                }
+            }
+        }
+    }
+    true // 道に接続する頂点がすべてブロックされている, もしくは接続する道がない
+}
+
 /// Is the action legal in this context
 ///
 /// Returns either an ok if the action can be played in the current phase and state,
 /// or an Error describing why the action can't be played
-pub fn legal(phase: &Phase, state: &State, action: Action) -> Result<(), Error> {
+pub fn legal(phase: &Phase, state: &State, action: Action, trade_allowed: bool) -> Result<(), Error> {
     match phase {
         //
         // # Initial Placement Phase
@@ -151,7 +189,7 @@ pub fn legal(phase: &Phase, state: &State, action: Action) -> Result<(), Error> 
             // ## Ending Turn
             //
             Action::EndTurn => {
-                if *turn_phase == TurnPhase::Free {
+                if *turn_phase == TurnPhase::Free && *development_phase != DevelopmentPhase::KnightActive{
                     Ok(())
                 } else {
                     Err(Error::IncoherentAction(action))
@@ -161,7 +199,7 @@ pub fn legal(phase: &Phase, state: &State, action: Action) -> Result<(), Error> 
             // ## Rolling Dice
             //
             Action::RollDice => {
-                if *turn_phase == TurnPhase::PreRoll {
+                if *turn_phase == TurnPhase::PreRoll && (*development_phase == DevelopmentPhase::Ready || *development_phase == DevelopmentPhase::DevelopmentPlayed){
                     Ok(())
                 } else {
                     Err(Error::IncoherentAction(action))
@@ -208,7 +246,7 @@ pub fn legal(phase: &Phase, state: &State, action: Action) -> Result<(), Error> 
                 } else {
                     false
                 };
-                if *turn_phase != TurnPhase::Free && !road_building {
+                if (*turn_phase != TurnPhase::Free && !road_building) || (*development_phase == DevelopmentPhase::KnightActive) {
                     return Err(Error::IncoherentAction(action));
                 }
                 can_put_road(*player, path, state)?;
@@ -225,7 +263,7 @@ pub fn legal(phase: &Phase, state: &State, action: Action) -> Result<(), Error> 
             // ## Building Settlement
             //
             Action::BuildSettlement { intersection } => {
-                if *turn_phase != TurnPhase::Free {
+                if *turn_phase != TurnPhase::Free || (*development_phase != DevelopmentPhase::Ready && *development_phase != DevelopmentPhase::DevelopmentPlayed) {
                     return Err(Error::IncoherentAction(action));
                 }
                 // If: we are next to a road...
@@ -245,7 +283,7 @@ pub fn legal(phase: &Phase, state: &State, action: Action) -> Result<(), Error> 
             // ## Building City
             //
             Action::BuildCity { intersection } => {
-                if *turn_phase != TurnPhase::Free {
+                if *turn_phase != TurnPhase::Free || (*development_phase != DevelopmentPhase::Ready && *development_phase != DevelopmentPhase::DevelopmentPlayed) {
                     return Err(Error::IncoherentAction(action));
                 }
                 // If: we already own a settlement at the position
@@ -263,7 +301,7 @@ pub fn legal(phase: &Phase, state: &State, action: Action) -> Result<(), Error> 
             // ## Trade Bank
             //
             Action::TradeBank { given, asked } => {
-                if *turn_phase != TurnPhase::Free {
+                if *turn_phase != TurnPhase::Free || (*development_phase != DevelopmentPhase::Ready && *development_phase != DevelopmentPhase::DevelopmentPlayed) {
                     return Err(Error::IncoherentAction(action));
                 }
                 if given == asked {
@@ -280,10 +318,60 @@ pub fn legal(phase: &Phase, state: &State, action: Action) -> Result<(), Error> 
                 }
             }
             //
+            // Trade with players
+            //
+            Action::TradePlayers {offer, want, partner} => {
+                if !trade_allowed {
+                    return Err(Error::IllegalAction(action));
+                }
+                if *turn_phase != TurnPhase::Free || (*development_phase != DevelopmentPhase::Ready && *development_phase != DevelopmentPhase::DevelopmentPlayed) {
+                    return Err(Error::IncoherentAction(action));
+                }
+                if partner == *player || partner.to_u8() >= state.player_count(){
+                    return Err(Error::IllegalAction(action));
+                }
+                let diff = want - offer;
+                if !diff.valid_trade() {
+                    return Err(Error::IllegalAction(action));
+                }
+                let current = state.get_player_hand(*player).resources;
+                if current >= offer {
+                    Ok(())
+                } else {
+                    Err(Error::NotEnoughResources { required: offer, have: current })
+                }
+            }
+            //
+            // Trade Accept
+            //
+            Action::TradePlayersAccept => {
+                if let TurnPhase::TradeSupposed(player) = *turn_phase {
+                    let current = state.get_player_hand(player).resources;
+                    let wanted = state.get_trade_wanted();
+                    if current >= wanted {
+                        Ok(())
+                    } else {
+                        Err(Error::NotEnoughResources { required: wanted, have: current })
+                    }
+                } else {
+                    Err(Error::IncoherentAction(action))
+                }
+            }
+            //
+            //Trade Decline
+            //
+            Action::TradePlayersDecline => {
+                if let TurnPhase::TradeSupposed(_) = *turn_phase {
+                    Ok(())
+                } else {
+                    Err(Error::IncoherentAction(action))
+                }
+            }
+            //
             // ## Buy Development Card
             //
             Action::BuyDevelopment => {
-                if *turn_phase != TurnPhase::Free {
+                if *turn_phase != TurnPhase::Free || (*development_phase != DevelopmentPhase::Ready && *development_phase != DevelopmentPhase::DevelopmentPlayed) {
                     return Err(Error::IncoherentAction(action));
                 }
                 if state.get_development_cards().total() >= 1
@@ -313,6 +401,8 @@ pub fn legal(phase: &Phase, state: &State, action: Action) -> Result<(), Error> 
             Action::DevelopmentRoadBuilding => {
                 if !turn_phase.unbound() {
                     Err(Error::IncoherentAction(action))
+                } else if *turn_phase == TurnPhase::PreRoll{
+                    Err(Error::IncoherentAction(action))
                 } else if *development_phase != DevelopmentPhase::Ready {
                     Err(Error::DevelopmentCardAlreadyPlayed)
                 } else if state.get_player_hand(*player).development_cards.road_building == 0 {
@@ -324,30 +414,24 @@ pub fn legal(phase: &Phase, state: &State, action: Action) -> Result<(), Error> 
             //
             // ## Use Year of Plenty Development Card
             //
-            Action::DevelopmentYearOfPlenty => {
+            Action::DevelopmentYearOfPlenty { resources } => {
                 if !turn_phase.unbound() {
                     Err(Error::IncoherentAction(action))
                 } else if *development_phase != DevelopmentPhase::Ready {
                     Err(Error::DevelopmentCardAlreadyPlayed)
                 } else if state.get_player_hand(*player).development_cards.year_of_plenty == 0 {
                     Err(Error::NoCard { card_type: DevelopmentCard::YearOfPlenty })
+                } else if resources.total() != 2 {
+                    Err(Error::IllegalAction(action))
+                } else if !(resources <= state.get_bank_resources()) {
+                    for resource in Resource::ALL.iter() {
+                        if resources[*resource] > state.get_bank_resources()[*resource] {
+                            return Err(Error::NoMoreResourceInBank(*resource));
+                        }
+                    }
+                    unreachable!();
                 } else {
                     Ok(())
-                }
-            },
-            Action::ChooseFreeResource { resource } => {
-                if let DevelopmentPhase::YearOfPlentyActive { two_left: _ } = *development_phase {
-                    if turn_phase.unbound() {
-                        if state.get_bank_resources()[resource] == 0 {
-                            Err(Error::NoMoreResourceInBank(resource))
-                        } else {
-                            Ok(())
-                        }
-                    } else {
-                        Err(Error::IncoherentAction(action))
-                    }
-                } else {
-                    Err(Error::IncoherentAction(action))
                 }
             },
             //

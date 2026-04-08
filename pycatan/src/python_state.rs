@@ -11,17 +11,18 @@ use super::PyObservationFormat;
 pub struct PythonState {
     format: PyObservationFormat,
     player_count: usize,
-    pub boards: Array1<Array3<i32>>,
+    pub boards: Array1<Array3<i8>>,
     state: State,
 }
 
 impl PythonState {
+    #[allow(dead_code)]
     pub fn new(layout: &'static Layout, players: u8, format: PyObservationFormat) -> PythonState {
         let player_count = players as usize;
         PythonState {
             format,
             player_count,
-            boards: vec![Array3::<i32>::zeros((format.width,format.height, 13 + 2 * players as usize)); player_count].into(),
+            boards: vec![Array3::<i8>::zeros((format.width,format.height, 13 + 2 * players as usize)); player_count].into(),
             state: TricellState::new_empty(layout, players),
         }
     }
@@ -30,7 +31,7 @@ impl PythonState {
         let x = (coord.x + self.format.half_width as i8) as usize;
         let y = (coord.y + self.format.half_height as i8) as usize;
         for board in self.boards.iter_mut() {
-            board[(x, y, channel)] = value;
+            board[(x, y, channel)] = value as i8;
         }
     }
 
@@ -39,7 +40,7 @@ impl PythonState {
         let y = (coord.y + self.format.half_height as i8) as usize;
         let mut i = player.to_usize();
         for board in self.boards.iter_mut() {
-            board[(x, y, channel + i)] = value;
+            board[(x, y, channel + i)] = value as i8;
             if i == 0 {
                 i = self.player_count - 1;
             } else {
@@ -141,5 +142,36 @@ impl StateTrait for PythonState {
 
     fn as_any(&self) -> &dyn Any {
         self
+    }
+
+    fn clone_box(&self) -> State {
+        Box::new(self.clone())
+    }
+
+    fn set_trade_info(&mut self, offer: Resources, require: Resources, supposer: PlayerId, partner: PlayerId) {
+        self.state.set_trade_info(offer, require, supposer, partner);
+    }
+
+    fn get_trade_offer(&self) -> Resources {
+        self.state.get_trade_offer()
+    }
+
+    fn get_trade_wanted(&self) -> Resources {
+        self.state.get_trade_wanted()
+    }
+
+    fn get_trade_supposer(&self) -> PlayerId {
+        self.state.get_trade_supposer()
+    }
+}
+
+impl Clone for PythonState {
+    fn clone(&self) -> Self {
+        PythonState {
+            format: self.format,
+            player_count: self.player_count,
+            boards: self.boards.clone(),
+            state: self.state.clone_box(),
+        }
     }
 }

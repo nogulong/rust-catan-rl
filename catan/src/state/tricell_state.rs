@@ -2,7 +2,7 @@ use std::any::Any;
 
 use crate::board::map::TricellMap;
 use crate::board::{Layout, Error};
-use crate::utils::{Empty, Hex, Harbor, Coord, DevelopmentCards, Resources};
+use crate::utils::{Coord, DevelopmentCards, Empty, Harbor, Hex, LandHex, Resource, Resources};
 use crate::board::utils::topology::Topology;
 use super::PlayerHand;
 use super::{State, StateTrait, StateMaker, PlayerId};
@@ -18,6 +18,10 @@ pub struct TricellState {
     discards: Vec<(PlayerId,Option<Resources>)>,
     players: Vec<PlayerHand>,
     bank_resources: Resources,
+    trade_offered: Resources,
+    trade_wanted: Resources,
+    trade_partner: PlayerId,
+    trade_supposer: PlayerId,
 }
 
 impl TricellState {
@@ -33,6 +37,10 @@ impl TricellState {
             discards: Vec::new(),
             players: vec![PlayerHand::new();players],
             bank_resources: Resources::STARTING_BANK,
+            trade_offered: Resources::ZERO,
+            trade_wanted: Resources::ZERO,
+            trade_partner: PlayerId::NONE,
+            trade_supposer: PlayerId::NONE,
         }
     }
 
@@ -159,7 +167,24 @@ impl StateTrait for TricellState {
     }
 
     fn set_thief_hex(&mut self, coord: Coord) {
-        self.thief = coord
+        self.thief = coord;
+        for p in 0..self.player_count() {
+            let player_hand = self.get_player_hand_mut(PlayerId::from(p));
+            player_hand.blocked_roll = (0, Resource::Brick, 0);
+        }
+        if let Hex::Land(LandHex::Prod(res, num_token)) = self.get_static_hex(coord).expect("Failed to get hex") {
+            // coord hex に隣接するすべてのintersectionを調べる
+            let intersections = self.hex_intersection_neighbours(coord).unwrap();
+            for intersection in intersections {
+                if let Some((player, is_city)) = self.get_dynamic_intersection(intersection).expect("Failed to inspect hex") {
+                    let harvest = if is_city { 2 } else { 1 };
+                    let player_hand = self.get_player_hand_mut(player);
+                    player_hand.blocked_roll.0 = num_token;
+                    player_hand.blocked_roll.1 = res;
+                    player_hand.blocked_roll.2 += harvest;
+                }
+            }
+        } 
     }
 
     fn hold_discards(&mut self, discards: Vec<(PlayerId, Option<Resources>)>) {
@@ -298,6 +323,20 @@ impl StateTrait for TricellState {
     }
 
     fn set_dynamic_intersection(&mut self, coord: Coord, player: PlayerId, is_city: bool) -> Result<(), Error>{
+        let hexes = self.intersection_hex_neighbours(coord).expect("Failed to get hexes");
+        for hex in hexes {
+            if let Hex::Land(LandHex::Prod(res, num_token)) = self.get_static_hex(hex).expect("Failed to get static hex") {
+                self.get_player_hand_mut(player).harvest_on_roll[(num_token - 2) as usize][res] += 1;
+
+                // 盗賊の影響を受ける場所に建設 or 都市化した場合
+                if hex == self.get_thief_hex() {
+                    let player_hand = self.get_player_hand_mut(player);
+                    player_hand.blocked_roll.0 = num_token;
+                    player_hand.blocked_roll.1 = res;
+                    player_hand.blocked_roll.2 += 1;
+                }
+            }
+        }
         Ok(self.dynamic_board.set_intersection(coord, (player, is_city))?)
     }
 
@@ -312,5 +351,49 @@ impl StateTrait for TricellState {
 
     fn as_any(&self) -> &dyn Any {
         self
+    }
+
+    fn clone_box(&self) -> State {
+        Box::new(self.clone())
+    }
+
+    fn set_trade_info(&mut self, offer: Resources, want: Resources, supposer: PlayerId, partner: PlayerId) {
+        self.trade_offered = offer;
+        self.trade_wanted = want;
+        self.trade_supposer = supposer;
+        self.trade_partner = partner;
+    }
+
+    fn get_trade_offer(&self) -> Resources {
+        self.trade_offered
+    }
+
+    fn get_trade_wanted(&self) -> Resources {
+        self.trade_wanted
+    }
+
+    fn get_trade_supposer(&self) -> PlayerId {
+        self.trade_supposer
+    }
+}
+
+impl Clone for TricellState {
+    fn clone(&self) -> Self {
+        TricellState {
+            layout: self.layout,
+            static_board: self.static_board.clone(),
+            dynamic_board: self.dynamic_board.clone(),
+            thief: self.thief,
+            development_card: self.development_card,
+            longest_road: self.longest_road,
+            largest_army: self.largest_army,
+            discards: self.discards.clone(),
+            players: self.players.clone(),
+            bank_resources: self.bank_resources,
+            trade_offered: self.trade_offered,
+            trade_wanted: self.trade_wanted,
+            trade_partner: self.trade_partner,
+            trade_supposer: self.trade_supposer,
+        }
     }
 }

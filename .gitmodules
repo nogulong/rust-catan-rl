@@ -1,0 +1,3 @@
+[submodule "external/jsettlers"]
+	path = external/jsettlers
+	url = https://github.com/nogulong/jsettlers2-custom.git

@@ -1,9 +1,9 @@
-use catan::state::PlayerId;
+use crate::state::PlayerId;
 use once_cell::sync::Lazy;
 use termion::color;
 use termion::color::AnsiValue;
 
-use catan::utils::{Hex, LandHex, Harbor, Resource};
+use crate::utils::{Hex, LandHex, Harbor, Resource};
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum DrawType {
@@ -21,6 +21,7 @@ pub enum DrawType {
 pub trait ToDrawType where Self: Sized {
     fn to_draw_type(&self) -> DrawType;
 
+    #[allow(dead_code)]
     fn to_option_draw_type(optioned: Option<&Self>) -> DrawType {
         match optioned {
             Some(thing) => thing.to_draw_type(),

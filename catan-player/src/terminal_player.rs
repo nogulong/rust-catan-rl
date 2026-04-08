@@ -7,8 +7,8 @@ use catan::state::{State, PlayerId};
 use catan::game::{Action, Error, Phase, Notification};
 use catan::player::CatanPlayer;
 
-use crate::display::utils::grid_display;
-use crate::display::{PrettyGridDisplay, pretty_public_player_hand, pretty_private_player_hand};
+use catan::display::utils::grid_display;
+use catan::display::{PrettyGridDisplay, pretty_public_player_hand, pretty_private_player_hand};
 use super::action_parser::{parse_action, parse_help};
 
 pub struct TerminalPlayer {
@@ -105,6 +105,7 @@ impl CatanPlayer for TerminalPlayer {
     }
 
     fn results(&mut self, state: &State, winner: PlayerId) {
+        write!(self.screen, "{clear}", clear = clear::All).expect("Failed to clear screen");
         self.write_state(state);
         writeln!(self.screen, "Winner : {:?}", winner).unwrap();
     }

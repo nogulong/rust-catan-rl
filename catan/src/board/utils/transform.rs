@@ -61,8 +61,8 @@ impl CoordTransform {
     const FLIP_BIT: u32 = 1 << 31;
 
     pub fn random<R: Rng>(center: Coord, rng: &mut R) -> CoordTransform {
-        let v: u32 = rng.gen();
-        let flip: bool = v & CoordTransform::FLIP_BIT != 0;
+        let v: u32 = rng.random();
+        let flip: bool = v & CoordTransform::FLIP_BIT != 0;// 1/2の確率でtrueになる
         CoordTransform{
             center,
             flip,

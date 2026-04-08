@@ -2,35 +2,49 @@ pub mod action;
 mod error;
 mod phase;
 mod notification;
-mod apply;
+pub mod apply;
 pub mod legal;
+
+#[cfg(test)]
+mod legal_tests;
+#[cfg(test)]
+mod apply_tests;
 
 pub use error::Error;
 pub use action::{Action, ActionCategory};
 pub use phase::{Phase, TurnPhase, DevelopmentPhase};
 pub use notification::Notification;
+use crate::state::{State, TricellState};
+use crate::board::setup;
+use crate::state::PlayerId;
+use crate::player::CatanPlayer;
+use crate::history::{GameHistory, DetailedIdGameHistory, GameMetadata};
 
 // --------------------------------------------------------------------------------------------- //
 
 use rand::SeedableRng;
 use rand::rngs::SmallRng;
 use rand::seq::SliceRandom;
-
-use crate::state::{State, TricellState};
-use crate::board::setup;
-use crate::state::PlayerId;
-use crate::player::CatanPlayer;
+use rand::Rng;
 
 use apply::apply;
 
 pub struct Game {
     pub players: Vec<Box<dyn CatanPlayer>>,
+    pub history: GameHistory,
+}
+
+pub enum GameResult {
+    Finished { winner: PlayerId },
+    Interrupted,
+    Reseted,
 }
 
 impl Game {
     pub fn new() -> Game {
         Game {
             players: Vec::new(),
+            history: Box::new(DetailedIdGameHistory::new()),
         }
     }
 
@@ -44,17 +58,26 @@ impl Game {
         }
     }
 
-    pub fn setup_and_play(&mut self) -> Notification {
+    pub fn setup_and_play(&mut self) -> (GameHistory, GameResult) {
         let player_count = self.players.len();
-        let mut rng = SmallRng::from_entropy();
+        let seed: u64 = rand::rng().random();
+        let mut rng = SmallRng::seed_from_u64(seed);
         let mut state = setup::random_default::<TricellState, SmallRng>(&mut rng, player_count as u8);
         let mut players_order: Vec<usize> = (0..player_count).collect();
         players_order.shuffle(&mut rng);
-        self.play(&mut rng, &mut state, players_order)
+        let metadata = GameMetadata {
+            player_count: player_count as u8,
+            seed,
+        };
+        self.history.set_metadata(metadata);
+        let result = self.play(&mut rng, &mut state, players_order);
+        let new_history = self.history.create_new();
+        (std::mem::replace(&mut self.history, new_history), result)
     }
 
-    pub fn play(&mut self, rng: &mut SmallRng, state: &mut State, players_order: Vec<usize>) -> Notification {
+    pub fn play(&mut self, rng: &mut SmallRng, state: &mut State, players_order: Vec<usize>) -> GameResult {
         let mut phase = Phase::START_GAME;
+        self.history.push_snapshot(state);
 
         for (i, player) in players_order.iter().enumerate() {
             self.players[*player].new_game(PlayerId::from(i), &state);
@@ -65,7 +88,8 @@ impl Game {
                 for player in players_order.iter() {
                     self.players[*player].results(&state, winner);
                 }
-                return Notification::GameFinished { winner };
+                self.history.set_winner(winner);
+                return GameResult::Finished { winner };
             }
 
             // Get the player object that is supposed to be making a decision
@@ -75,11 +99,13 @@ impl Game {
                 // Ask player to take action
                 action = player.pick_action(&phase, &state);
                 if action == Action::Exit {
-                    return Notification::GameFinished { winner: PlayerId::NONE };
+                    return GameResult::Interrupted;
+                } else if action == Action::Reset {
+                    return GameResult::Reseted;
                 }
 
                 // Checks if action is legal
-                let result = legal::legal(&phase, &state, action);
+                let result = legal::legal(&phase, &state, action, true);
                 if let Err(error) = result {
                     // Tells player if action was invalid
                     player.bad_action(error);
@@ -90,9 +116,32 @@ impl Game {
 
             // Notifies every player of action played
             let prev_phase = phase;
-            self.notify_all(Notification::ActionPlayed { by: phase.player(), action });
+            let prev_player = phase.player();
+            let discards_clone = state.peek_discards().clone();
             // Applies action
-            apply(&mut phase, state, action, rng);
+            let record = apply(&mut phase, state, action, rng);
+            // Discard と tradeのアクセプトの場合、まとめて通知 & 履歴記録
+            // prev_phaseがdiscardかつphaseがdiscardでない場合はnotifyしない
+            if action == Action::RollDice {
+                self.notify_all(Notification::ResourcesRolled {
+                    roll: record.dice_roll.unwrap(),
+                    resources: record.resource_changes.clone()
+                });
+            } else if matches!(prev_phase, Phase::Turn { turn_phase: TurnPhase::Discard(_),.. }) {
+                if !matches!(phase, Phase::Turn { turn_phase: TurnPhase::Discard(_), .. }) {
+                    self.notify_all(Notification::Discards {
+                        discards: discards_clone.into_iter().map(|(p, r)| (p, r)).collect()
+                    });
+                }
+            } else if action == Action::TradePlayersAccept {
+                self.notify_all(Notification::TradeAccepted);
+            } else if action == Action::TradePlayersDecline {
+                self.notify_all(Notification::TradeDeclined);
+            } else {
+                self.notify_all(Notification::ActionPlayed { by: prev_player, action });
+            }
+            self.history.push_turn_record(record);
+            self.history.push_snapshot(state);
             let coherence = check_coherence(state);
             if coherence.is_err() {
                 println!("[INCOHERENCE] {:?} --({:?})-> {:?}", prev_phase, action, phase);

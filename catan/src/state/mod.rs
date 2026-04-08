@@ -5,8 +5,9 @@ pub mod topology;
 
 pub use player_hand::PlayerHand;
 pub use tricell_state::TricellState;
+use serde::{Serialize, Deserialize};
 
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct PlayerId(u8);
 
 use std::any::Any;
@@ -53,7 +54,7 @@ pub trait StateMaker {
 
 pub type State = Box<dyn StateTrait>;
 
-pub trait StateTrait {
+pub trait StateTrait: Send + Sync {
 
     fn get_layout(&self) -> &Layout;
 
@@ -100,7 +101,7 @@ pub trait StateTrait {
     }
 
     fn get_player_total_vp(&self, player: PlayerId) -> u8 {
-        self.get_player_public_vp(player) + self.get_player_hand(player).development_cards.victory_point + self.get_player_hand(player).new_development_cards.victory_point
+        self.get_player_public_vp(player) + self.get_player_hand(player).development_cards.victory_point as u8 + self.get_player_hand(player).new_development_cards.victory_point as u8
     }
 
     fn get_longest_road(&self) -> Option<(PlayerId, u8)>;
@@ -141,4 +142,80 @@ pub trait StateTrait {
     fn get_dynamic_intersection(&self, coord: Coord) -> Result<Option<(PlayerId, bool)>, Error>;
 
     fn as_any(&self) -> &dyn Any;
+
+    fn clone_box(&self) -> State;
+
+    fn set_trade_info(&mut self, offer: Resources, require: Resources, supposer: PlayerId, partner: PlayerId);
+
+    fn get_trade_offer(&self) -> Resources;
+
+    fn get_trade_wanted(&self) -> Resources;
+
+    fn get_trade_supposer(&self) -> PlayerId;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_player_id_constants() {
+        assert_eq!(PlayerId::FIRST.to_u8(), 0);
+        assert_eq!(PlayerId::NONE.to_u8(), std::u8::MAX);
+    }
+
+    #[test]
+    fn test_player_id_to_u8() {
+        let p0 = PlayerId::from(0u8);
+        let p1 = PlayerId::from(1u8);
+        let p3 = PlayerId::from(3u8);
+
+        assert_eq!(p0.to_u8(), 0);
+        assert_eq!(p1.to_u8(), 1);
+        assert_eq!(p3.to_u8(), 3);
+    }
+
+    #[test]
+    fn test_player_id_to_usize() {
+        let p0 = PlayerId::from(0u8);
+        let p2 = PlayerId::from(2u8);
+
+        assert_eq!(p0.to_usize(), 0);
+        assert_eq!(p2.to_usize(), 2);
+    }
+
+    #[test]
+    fn test_player_id_from_u8() {
+        let p = PlayerId::from(5u8);
+        assert_eq!(p.to_u8(), 5);
+    }
+
+    #[test]
+    fn test_player_id_from_usize() {
+        let p = PlayerId::from(7usize);
+        assert_eq!(p.to_u8(), 7);
+    }
+
+    #[test]
+    fn test_player_id_option_some() {
+        let p = PlayerId::from(2u8);
+        assert_eq!(p.option(), Some(PlayerId::from(2u8)));
+    }
+
+    #[test]
+    fn test_player_id_option_none() {
+        let p = PlayerId::NONE;
+        assert_eq!(p.option(), None);
+    }
+
+    #[test]
+    fn test_player_id_equality() {
+        let p1 = PlayerId::from(1u8);
+        let p2 = PlayerId::from(1u8);
+        let p3 = PlayerId::from(2u8);
+
+        assert_eq!(p1, p2);
+        assert_ne!(p1, p3);
+        assert_eq!(PlayerId::FIRST, PlayerId::from(0u8));
+    }
 }

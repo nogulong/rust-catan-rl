@@ -131,3 +131,129 @@ impl fmt::Display for Type {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_coord_new() {
+        let coord = Coord::new(5, 7);
+        assert_eq!(coord.x, 5);
+        assert_eq!(coord.y, 7);
+    }
+
+    #[test]
+    fn test_coord_zero() {
+        assert_eq!(Coord::ZERO.x, 0);
+        assert_eq!(Coord::ZERO.y, 0);
+    }
+
+    #[test]
+    fn test_coord_equality() {
+        let a = Coord::new(1, 2);
+        let b = Coord::new(1, 2);
+        let c = Coord::new(2, 1);
+
+        assert_eq!(a, b);
+        assert_ne!(a, c);
+    }
+
+    #[test]
+    fn test_coord_ordering() {
+        let a = Coord::new(1, 1);
+        let b = Coord::new(2, 1);
+        let c = Coord::new(1, 2);
+
+        // Same y, compare by x
+        assert!(a < b);
+
+        // Different y, compare by y first
+        assert!(a < c);
+        assert!(b < c);
+    }
+
+    #[test]
+    fn test_coord_get_type_hex() {
+        let hex1 = Coord::new(0, 0);
+        assert_eq!(hex1.get_type(), Type::Hex);
+        let hex2 = Coord::new(4, 0);
+        assert_eq!(hex2.get_type(), Type::Hex);
+        let hex3 = Coord::new(-2, 2);
+        assert_eq!(hex3.get_type(), Type::Hex);
+    }
+
+    #[test]
+    fn test_coord_get_type_path() {
+        let path1 = Coord::new(2, 0);
+        assert_eq!(path1.get_type(), Type::Path);
+
+        let path2 = Coord::new(1, 1);
+        assert_eq!(path2.get_type(), Type::Path);
+
+        let path3 = Coord::new(3, 1);
+        assert_eq!(path3.get_type(), Type::Path);
+
+        let path4 = Coord::new(-3, -1);
+        assert_eq!(path4.get_type(), Type::Path);
+    }
+
+    #[test]
+    fn test_coord_get_type_intersection() {
+        let int1 = Coord::new(0, 1);
+        assert_eq!(int1.get_type(), Type::Intersection);
+
+        let int2 = Coord::new(2, 1);
+        assert_eq!(int2.get_type(), Type::Intersection);
+
+        let int3 = Coord::new(-2, -1);
+        assert_eq!(int3.get_type(), Type::Intersection);
+    }
+
+    #[test]
+    fn test_coord_get_type_void() {
+        let void1 = Coord::new(1, 0);
+        assert_eq!(void1.get_type(), Type::Void);
+
+        let void2 = Coord::new(3, 0);
+        assert_eq!(void2.get_type(), Type::Void);
+
+        let void3 = Coord::new(-1, 0);
+        assert_eq!(void3.get_type(), Type::Void);
+
+        let void4 = Coord::new(-3, 2);
+        assert_eq!(void4.get_type(), Type::Void);
+    }
+
+    #[test]
+    fn test_coord_get_detailed_type() {
+        assert_eq!(Coord::new(0, 0).get_detailed_type() as u8, DetailedType::OHex as u8);
+        assert_eq!(Coord::new(2, 0).get_detailed_type() as u8, DetailedType::IPath as u8);
+        assert_eq!(Coord::new(1, 1).get_detailed_type() as u8, DetailedType::SPath as u8);
+        assert_eq!(Coord::new(3, 1).get_detailed_type() as u8, DetailedType::ZPath as u8);
+        assert_eq!(Coord::new(0, 1).get_detailed_type() as u8, DetailedType::AIntersection as u8);
+        assert_eq!(Coord::new(2, 1).get_detailed_type() as u8, DetailedType::VIntersection as u8);
+        assert_eq!(Coord::new(1, 0).get_detailed_type() as u8, DetailedType::RVoid as u8);
+        assert_eq!(Coord::new(3, 0).get_detailed_type() as u8, DetailedType::LVoid as u8);
+    }
+
+    #[test]
+    fn test_type_display() {
+        assert_eq!(format!("{}", Type::Void), "V");
+        assert_eq!(format!("{}", Type::Hex), "H");
+        assert_eq!(format!("{}", Type::Path), "P");
+        assert_eq!(format!("{}", Type::Intersection), "I");
+    }
+
+    #[test]
+    fn test_coord_display() {
+        let coord = Coord::new(3, 5);
+        assert_eq!(format!("{}", coord), "(3,5)");
+    }
+
+    #[test]
+    fn test_coord_debug() {
+        let coord = Coord::new(3, 5);
+        assert_eq!(format!("{:?}", coord), "Coord(3,5)");
+    }
+}

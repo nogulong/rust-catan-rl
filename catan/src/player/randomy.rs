@@ -7,6 +7,7 @@ use super::{CatanPlayer, ActionPickerPlayer, PickerPlayerTrait};
 
 pub struct Randomy {
     rng: SmallRng,
+    trade_activated: bool,
 }
 
 impl PickerPlayerTrait for Randomy {
@@ -16,11 +17,15 @@ impl PickerPlayerTrait for Randomy {
     fn new_game(&mut self, _: PlayerId, _: &State, _: &Vec<Action>) {}
 
     fn pick_action(&mut self, _: &Phase, _: &State, legal_actions: &Vec<Action>) -> Action {
-        legal_actions[self.rng.gen_range(0, legal_actions.len())]
+        legal_actions[self.rng.random_range(0..legal_actions.len())]
     }
 
     fn bad_action(&mut self, error: Error) {
         println!("{:?}", error);
+    }
+
+    fn is_trade_activated(&self) -> bool {
+        self.trade_activated
     }
 
     fn notify(&mut self, _: &Notification) {}
@@ -29,13 +34,14 @@ impl PickerPlayerTrait for Randomy {
 }
 
 impl Randomy {
-    fn new() -> Randomy {
+    fn new(trade_activated: bool) -> Randomy {
         Randomy {
-            rng: SmallRng::from_entropy(),
+            rng: SmallRng::from_rng(&mut rand::rng()),
+            trade_activated,
         }
     }
 
-    pub fn new_player() -> impl CatanPlayer {
-        ActionPickerPlayer::new(Randomy::new())
+    pub fn new_player(trade_activated: bool) -> impl CatanPlayer {
+        ActionPickerPlayer::new(Randomy::new(trade_activated))
     }
 }

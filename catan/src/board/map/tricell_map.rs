@@ -88,3 +88,15 @@ impl<H: Copy, P: Copy, I: Copy> TricellMap<H,P,I> {
         Ok(())
     }
 }
+
+impl<H: Copy, P: Copy, I: Copy> Clone for TricellMap<H, P, I> {
+    fn clone(&self) -> Self {
+        TricellMap {
+            map: self.map.clone(),
+            defaults: self.defaults,
+            layout_half_height: self.layout_half_height,
+            layout_half_width: self.layout_half_width,
+            layout_width: self.layout_width,
+        }
+    }
+}

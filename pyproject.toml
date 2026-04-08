@@ -1,0 +1,47 @@
+[project]
+name = "pycatan"
+requires-python = ">=3.12, <3.13"
+dependencies = [
+    "matplotlib>=3.10.7",
+    "maturin>=1.8.7",
+    "msgpack>=1.1.2",
+    "numpy>=2.2.6",
+    "setuptools>=80.9.0",
+    "torch==2.6.0",
+    "torch-tensorrt==2.6.0",
+    "tensorrt==10.7.*",
+    "tensorboard==2.20.0",
+    "tqdm>=4.67.1",
+    "zstandard>=0.25.0",
+    "ray>=2.52.1",
+    "onnxruntime-gpu==1.20.*",
+    "onnx==1.16.1",
+]
+dynamic = ["version"]
+
+[dependency-groups]
+dev = [
+    "gymnasium>=1.2.2",
+    "pettingzoo[classic]>=1.25.0",
+]
+
+[build-system]
+requires = ["maturin>=1.8.7"]
+build-backend = "maturin"
+
+[tool.maturin]
+manifest-path = "pycatan/Cargo.toml"
+python-source = "pycatan/python"
+module-name = "pycatan._pycatan"
+include = [
+    { path = "pycatan/**/*.onnx", format = "wheel" }, 
+    { path = "pycatan/**/*.jar", format = "wheel"}
+]
+exclude = [
+    "**/*.rs",
+    "**/Cargo.toml",
+    "target/*"
+]
+
+[project.scripts]
+play-catan = "pycatan.jsettlers.play_match:play_match"

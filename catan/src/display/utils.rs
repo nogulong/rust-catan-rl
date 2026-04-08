@@ -1,8 +1,8 @@
 use std::io::{Write, Error};
 use termion::{cursor, color};
 
-use catan::state::State;
-use catan::board::{Coord, DetailedCoordType};
+use crate::state::State;
+use crate::board::{Coord, DetailedCoordType};
 
 const STEP_WIDTH: u16 = 4;
 const STEP_WIDTH_BUFFER: u16 = 7;
