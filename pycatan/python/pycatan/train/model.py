@@ -1,4 +1,4 @@
-from .._pycatan import get_trade_table
+from pycatan import get_trade_table
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -301,7 +301,7 @@ class CatanXDimModel_OmitRPV(nn.Module): # 資源選好ベクトルなし
         num_spatial = len(config["board_logits_mask"][0]) # 空間に対応するアクションの数
         num_global_action = config["action_dim"] - num_spatial
         num_opponents = config["num_players"] - 1
-        full_table = pycatan.get_trade_table(player_count=config["num_players"])
+        full_table = get_trade_table(player_count=config["num_players"])
         num_recipes = full_table.shape[0] // num_opponents
 
         # Initial layers
