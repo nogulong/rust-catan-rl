@@ -20,6 +20,9 @@ typetag = "0.2.21"
 [dependencies.catan]
 path = "../catan"
 
+[dependencies.catan-player]
+path = "../catan-player"
+
 [dependencies.pyo3]
 version = "0.25"
 features = ["extension-module"]

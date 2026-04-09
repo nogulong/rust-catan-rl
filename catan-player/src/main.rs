@@ -1,12 +1,9 @@
-mod terminal_player;
-mod action_parser;
-
-pub use action_parser::parse_action;
+pub use catan_player::action_parser::parse_action;
 
 use catan::game::Game;
 use catan::player::Randomy;
 
-use terminal_player::TerminalPlayer;
+use catan_player::TerminalPlayer;
 
 fn main() {
     println!("[START]");

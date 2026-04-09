@@ -286,6 +286,7 @@ name = "pycatan"
 version = "0.1.2"
 dependencies = [
  "catan",
+ "catan-player",
  "ndarray",
  "numpy",
  "pyo3",

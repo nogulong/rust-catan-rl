@@ -4,6 +4,7 @@ from ._pycatan import (
     PyObservationFormat, 
     SingleVecEnvironment, 
     MultiVecEnvironment, 
+    TerminalEnvironment,
     PyTricellState, 
     display_history, 
     get_turn_observation, 

@@ -14,10 +14,6 @@ class BaseAgent:
         self.policy_model = OnnxInfer(self.main_model_path, device)
         self.trade_model = OnnxInfer_TradeExpector(self.trade_model_path, device)
 
-        self.TRADE_ACCEPT_ID = self.config["action_dim"] - 3  # 取引受諾アクションID
-        self.TRADE_REJECT_ID = self.config["action_dim"] - 2  # 取引拒否アクションID
-        self.TRADE_PROPOSE_ID = self.config["action_dim"] - 1 # 取引提案アクションID
-
         self.config["trade_pruning_k"] = 50  # 対戦時は大きめに, 全部読んでもいいかも, gumbel noiseはいれない
         self.trade_handler = TradeDecisionHandler_onnx(
             self.config, self.device
@@ -27,6 +23,12 @@ class BaseAgent:
         raise NotImplementedError
 
 class NoTradeAgent(BaseAgent): # 提案しないし, 受諾もしない
+
+    def __init__(self, config, device):
+        super().__init__(config, device)
+        self.TRADE_ACCEPT_ID = self.config["action_dim"] - 3  # 取引受諾アクションID
+        self.TRADE_REJECT_ID = self.config["action_dim"] - 2  # 取引拒否アクションID
+        self.TRADE_PROPOSE_ID = self.config["action_dim"] - 1 # 取引提案アクションID
 
     def act(self, board, flat, normal_mask, trade_mask=None):
         # 先頭にバッチ次元を追加
