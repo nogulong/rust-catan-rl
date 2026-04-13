@@ -10,6 +10,8 @@ def run_bot():
     parser.add_argument('nickname', help='Bot Nickname')
     parser.add_argument('cookie', help='Auth Cookie (dummy)')
     parser.add_argument('--enable_trade', action='store_true', help='Enable trade actions in the agent')
+    parser.add_argument('--main_model', default='None', help='Path to the main model (if using a custom one, .onnx format)')
+    parser.add_argument('--trade_model', default='None', help='Path to the trade model (if using a custom one, .onnx format)')
     
     parser.add_argument('--create', action='store_true', help='Create a new game instead of joining')
     parser.add_argument('--reset', action='store_true', help='Reset the game')
@@ -17,6 +19,7 @@ def run_bot():
     parser.add_argument('--game', default='pycatan_game', help='Game name to join (if not creating)')
     
     parser.add_argument('--seat', type=int, default=0, help='Seat number to request (0-3)')
+    parser.add_argument('--wait_time', type=float, default=0.0, help='Seconds to wait before selecting an action (for better GUI visibility)')
 
     args = parser.parse_args()
     device = "cpu"

@@ -11,6 +11,8 @@ def main():
         "action_dim": normal_legal_mask.shape[0],
         "trade_info_dim": 8,
         "num_players": 3,
+        "main_model": "None",
+        "trade_model": "None",
     }, device="cpu")
     while not done:
         action = agent.act(board, flat, normal_legal_mask, trade_legal_mask)

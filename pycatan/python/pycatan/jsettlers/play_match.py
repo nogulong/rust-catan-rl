@@ -8,6 +8,7 @@ from .server import start_server, open_gui
 def play_match():
     port = 8880
     pkg_root = resources.files("pycatan")
+    wait_time = 1.0 # before selecting an action, wait for this seconds, to make the GUI more visible.
 
     # サーバー起動
     server_process = start_server(port)
@@ -17,7 +18,7 @@ def play_match():
     cmd_bot = [
         sys.executable, "-m", "pycatan.jsettlers.run_bot",
         "localhost", str(port), "PycatanBot_1", "cookie",
-        "--interactive", "--create", "--enable_trade"
+        "--interactive", "--create", "--enable_trade", "--wait_time", str(wait_time)
     ]
         
     # stdin=PIPE, stdout=PIPE で起動
@@ -43,7 +44,7 @@ def play_match():
     cmd_bot2 = [
         sys.executable, "-m", "pycatan.jsettlers.run_bot",
         "localhost", str(port), "PycatanBot_2", "cookie",
-        "--interactive", "--enable_trade"
+        "--interactive", "--enable_trade", "--wait_time", str(wait_time)
     ]
 
     bot2_proc = subprocess.Popen(
@@ -67,7 +68,7 @@ def play_match():
     cmd_bot3 = [
         sys.executable, "-m", "pycatan.jsettlers.run_bot",
         "localhost", str(port), "PycatanBot_3", "cookie",
-        "--interactive", "--enable_trade"
+        "--interactive", "--enable_trade", "--wait_time", str(wait_time)
     ]
 
     bot3_proc = subprocess.Popen(

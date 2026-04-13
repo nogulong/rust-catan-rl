@@ -1,4 +1,5 @@
 import numpy as np
+import time
 from pycatan.utils import TradeDecisionHandler_onnx
 from pycatan.inference import OnnxInfer, OnnxInfer_TradeExpector
 from importlib import resources
@@ -9,8 +10,15 @@ class BaseAgent:
         self.config = config
         self.device = device
         pkg_root = resources.files("pycatan")
-        self.main_model_path = str(pkg_root / "main_model.onnx")
-        self.trade_model_path = str(pkg_root / "trade_model.onnx")
+        if config["main_model"] != "None":
+            self.main_model_path = config["main_model"]
+        else:
+            self.main_model_path = str(pkg_root / "main_model.onnx")
+        if config["trade_model"] != "None":
+            self.trade_model_path = config["trade_model"]
+        else:
+            self.trade_model_path = str(pkg_root / "trade_model.onnx")
+            
         self.policy_model = OnnxInfer(self.main_model_path, device)
         self.trade_model = OnnxInfer_TradeExpector(self.trade_model_path, device)
 
@@ -18,6 +26,7 @@ class BaseAgent:
         self.trade_handler = TradeDecisionHandler_onnx(
             self.config, self.device
         )
+        self.wait_time = config.get("wait_time", 0.0)
 
     def act(self, board, flat, normal_mask, trade_mask=None):
         raise NotImplementedError
@@ -31,6 +40,9 @@ class NoTradeAgent(BaseAgent): # 提案しないし, 受諾もしない
         self.TRADE_PROPOSE_ID = self.config["action_dim"] - 1 # 取引提案アクションID
 
     def act(self, board, flat, normal_mask, trade_mask=None):
+        # wait_timeが指定されていれば、行動選択前に待機する
+        if self.wait_time > 0:
+            time.sleep(self.wait_time)
         # 先頭にバッチ次元を追加
         board = board[np.newaxis, ...]  # (w, h, c) -> (1, w, h, c)
         flat = flat[np.newaxis, ...]   # (scalar_dim,) -> (1, scalar_dim)
@@ -50,6 +62,9 @@ class NoTradeAgent(BaseAgent): # 提案しないし, 受諾もしない
 class WithTradeAgent(BaseAgent): # 一手読みで取引を行うエージェント
 
     def act(self, board, flat, normal_mask, trade_mask):
+        # wait_timeが指定されていれば、行動選択前に待機する
+        if self.wait_time > 0:
+            time.sleep(self.wait_time)
         # バッチ次元の追加
         board = board[np.newaxis, ...]  # (w, h, c) -> (1, w, h, c)
         flat = flat[np.newaxis, ...]   # (scalar_dim,) -> (1, scalar_dim)
