@@ -28,6 +28,7 @@ info
 
 !pycatan/python/pycatan/main_model.onnx
 !pycatan/python/pycatan/trade_model.onnx
+!assets/**
 *.jar
 *.so
 
