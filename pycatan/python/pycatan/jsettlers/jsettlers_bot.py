@@ -190,7 +190,7 @@ class JSettlersBot:
                 except:
                     pass
                 self.sock = None
-            
+            time.sleep(1.0)
             # 再接続と再認証
             self.connect()
             self.authenticate()
