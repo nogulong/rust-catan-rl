@@ -59,10 +59,10 @@ pub fn generate_possible_actions_without_state(possible_actions: &mut Vec<Action
     possible_actions.push(Action::BuyDevelopment);
     possible_actions.push(Action::DevelopmentKnight);
     possible_actions.push(Action::DevelopmentRoadBuilding);
-    for b in 0..2 {
-        for l in 0..2-b {
-            for o in 0..2-(b+l) {
-                for g in 0..2-(b+l+o) {
+    for b in 0..=2 {
+        for l in 0..=2-b {
+            for o in 0..=2-(b+l) {
+                for g in 0..=2-(b+l+o) {
                     let w = 2-(b+l+o+g);
                     let resources = Resources::new(b,l,o,g,w);
                     possible_actions.push(Action::DevelopmentYearOfPlenty { resources })
