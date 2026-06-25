@@ -3,6 +3,13 @@ A Rust implementation for the board game Catan
 
 This is a fork of [Swynfel's rust-catan](https://github.com/Swynfel/rust-catan), enhanced with custom utilities based on our research. Most notably, you can play Catan against our powerful AI agents, which were trained entirely through end-to-end Reinforcement Learning (RL). A paper detailing our research and methodology is currently in preparation.
 
+## Prerequisites
+
+Before running the project, ensure you have the following installed:
+- **Rust**: stable toolchain 1.91+ (verified with Rust/Cargo 1.91.1)
+- **Python**: 3.12 (managed via `pyproject.toml`, `uv` is highly recommended)
+- **Java JRE/JDK**: 11+ (verified with OpenJDK 11.0.29)
+
 ## Quick Start
 
 Getting started is very simple. Just execute the following command in your terminal to launch the JSettlers GUI and start playing:
@@ -15,6 +22,25 @@ play-catan
 After the JSettlers GUI opens, fill in your nickname, join the game, and sit down in an empty seat.
 
 ![JSettlers GUI Gameplay against RL Agent](assets/gameplay.png)
+
+## Training
+
+python/train.py is our RL code. 
+
+```bash
+cd python
+python train.py --use_archive
+```
+
+## Evaluation
+
+To evaluate against JSettlers agents, execute
+
+```bash
+cd python/jsettlers
+python run_parallel_experiment.py --workers 50 --gpus 0,1 --model [model_path] --games 10000 --result_dir [optional] --id default --trade
+```
+and the result json file is generated.
 
 ## License and Acknowledgments
 
